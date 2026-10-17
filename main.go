@@ -12,19 +12,21 @@ type InstallCmd struct {
 }
 
 func (c *InstallCmd) Run(cli *CLI) error {
-	a, err := NewApp(cli.ApiKey, cli.Verbose, true, cli.SLSconfig)
+	a, err := NewApp(cli.ApiKey, cli.Verbose, cli.SLSconfig)
 	if err != nil {
 		return err
 	}
 	var found []foundGame
 	for _, g := range c.AppIDs {
-		appid, err := a.parseAppID(g)
+		appid, name, err := a.parseAppID(g)
 		if err != nil {
 			return err
 		}
-		name, err := getGameName(appid)
-		if err != nil {
-			return err
+		if name == "" {
+			name, err = getGameName(appid)
+			if err != nil {
+				return err
+			}
 		}
 		found = append(found, foundGame{appid, name})
 	}
@@ -57,7 +59,7 @@ type UpdateCmd struct {
 }
 
 func (c *UpdateCmd) Run(cli *CLI) error {
-	a, err := NewApp(cli.ApiKey, cli.Verbose, true, cli.SLSconfig)
+	a, err := NewApp(cli.ApiKey, cli.Verbose, cli.SLSconfig)
 	if err != nil {
 		return err
 	}

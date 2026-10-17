@@ -24,7 +24,7 @@ type App struct {
 	AppTokens        *yaml.Node // map[appid]token
 }
 
-func NewApp(apikey string, verbose bool, loadcfg bool, slsc string) (*App, error) {
+func NewApp(apikey string, verbose bool, slsc string) (*App, error) {
 	depotcache, err := xdg.SearchDataFile("Steam/depotcache")
 	if err != nil {
 		return nil, errors.New("Steam depotcache not found, start any game's installation in Steam.")
@@ -77,11 +77,9 @@ func NewApp(apikey string, verbose bool, loadcfg bool, slsc string) (*App, error
 		}
 		*f.target = res
 	}
-	if loadcfg {
-		a.Config, err = LoadConfig()
-		if err != nil {
-			return nil, err
-		}
+	a.Config, err = LoadConfig()
+	if err != nil {
+		return nil, err
 	}
 	a.Out = NewOutput(os.Stdout, verbose)
 	return a, nil

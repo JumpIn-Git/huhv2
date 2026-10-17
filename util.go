@@ -15,19 +15,18 @@ import (
 	"time"
 )
 
-func (a *App) parseAppID(g string) (int, error) {
+func (a *App) parseAppID(g string) (int, string, error) {
 	if n, err := strconv.Atoi(g); err == nil {
-		return n, nil
+		return n, "", nil
 	}
 	if matches := regexp.MustCompile(
 		`^(?:https?://)?store\.steampowered\.com/app/(\d+)`).
 		FindStringSubmatch(g); len(matches) > 1 {
 		if n, err := strconv.Atoi(matches[1]); err == nil {
-			return n, nil
+			return n, "", nil
 		}
 	}
-	return 0, fmt.Errorf("%s: Game search isn't implemented yet", g)
-	// return a.searchGameName(g)
+	return a.searchGameName(g)
 }
 
 var Client = &http.Client{Timeout: 20 * time.Second}

@@ -9,6 +9,8 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+
+	"charm.land/huh/v2"
 )
 
 // /api/v1/status/{app_id}
@@ -34,6 +36,59 @@ type ManifestData struct {
 type UsageResponse struct {
 	Limit int `json:"daily_limit"`
 	Usage int `json:"daily_usage"`
+}
+
+// /api/v1/library
+type LibraryResponse struct {
+	Status string `json:"status"`
+	Total  int    `json:"total_count"`
+	Games  []LibraryItem
+}
+
+type LibraryItem struct {
+	AppID int    `json:"game_id,string"`
+	Name  string `json:"game_name"`
+}
+
+func (l LibraryItem) String() string {
+	return fmt.Sprintf("%s (%d)", l.Name, l.AppID)
+}
+
+func (a *App) searchGameName(g string) (int, string, error) {
+	var resp LibraryResponse
+	if err := HttpJson(a.HubCapReq("/api/v1/library?sort_by=name&app_types=game&search=%s", g), &resp); err != nil {
+		return 0, "", err
+	}
+	if resp.Status != "success" {
+		return 0, "", fmt.Errorf("HubCap didn't succeed: %s", resp.Status)
+	}
+	if resp.Total == 0 || len(resp.Games) == 0 {
+		return 0, "", fmt.Errorf("HubCap did not find any available games")
+	}
+	if len(resp.Games) == 1 {
+		var b bool
+		if err := huh.NewConfirm().
+			Title(fmt.Sprintf("Is %s what you meant with %s?",
+				resp.Games[0], g)).
+			Value(&b).Run(); err != nil {
+			return 0, "", err
+		}
+		if b {
+			return resp.Games[0].AppID, resp.Games[0].Name, nil
+		}
+		return 0, "", fmt.Errorf("Canceled on game %s", g)
+	}
+	var game LibraryItem
+	// Workaround to show title in a filterable selection
+	if err := huh.NewForm(huh.NewGroup(
+		huh.NewSelect[LibraryItem]().
+			Options(huh.NewOptions(resp.Games...)...).
+			Filtering(true).
+			Value(&game)).
+		Title("Select your game available in HubCap")).Run(); err != nil {
+		return 0, "", err
+	}
+	return game.AppID, game.Name, nil
 }
 
 func (a *App) HubCapReq(url string, o ...any) *http.Request {
