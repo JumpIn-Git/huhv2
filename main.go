@@ -20,12 +20,12 @@ func (c *InstallCmd) Run(cli *CLI) error {
 	for _, g := range c.AppIDs {
 		appid, name, err := a.parseAppID(g)
 		if err != nil {
-			return err
+			return fmt.Errorf("parse %q: %w", g, err)
 		}
 		if name == "" {
 			name, err = getGameName(appid)
 			if err != nil {
-				return err
+				return fmt.Errorf("get name for %d: %w", appid, err)
 			}
 		}
 		found = append(found, foundGame{appid, name})
@@ -37,10 +37,10 @@ func (c *InstallCmd) Run(cli *CLI) error {
 		if err := a.InstallGame(g.AppID, g.Name); err != nil {
 			if upd {
 				if saveErr := a.Config.Save(); saveErr != nil {
-					err = fmt.Errorf("%w (%w)", err, saveErr)
+					return fmt.Errorf("install %s (%d): %w; also failed to save config: %v", g.Name, g.AppID, err, saveErr)
 				}
 			}
-			return err
+			return fmt.Errorf("install %s (%d): %w", g.Name, g.AppID, err)
 		}
 		if !slices.Contains(a.Config.Games, g.AppID) {
 			a.Config.Games = append(a.Config.Games, g.AppID)
@@ -49,7 +49,9 @@ func (c *InstallCmd) Run(cli *CLI) error {
 		a.Out.Info("Installed %s!", g.Name)
 	}
 	if upd {
-		return a.Config.Save()
+		if err := a.Config.Save(); err != nil {
+			return fmt.Errorf("save config: %w", err)
+		}
 	}
 	return nil
 }
@@ -111,7 +113,7 @@ func (m *Manager) Run(cli *CLI) error {
 	}
 	if m.Delete {
 		old := len(cfg.Games)
-		cfg.Games = slices.DeleteFunc(cfg.Pins, func(appid int) bool { return appid == m.AppID })
+		cfg.Games = slices.DeleteFunc(cfg.Games, func(appid int) bool { return appid == m.AppID })
 		if old > len(cfg.Games) {
 			return cfg.Save()
 		}

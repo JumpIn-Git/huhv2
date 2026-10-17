@@ -56,8 +56,12 @@ func (l LibraryItem) String() string {
 
 func (a *App) searchGameName(g string) (int, string, error) {
 	var resp LibraryResponse
-	if err := HttpJson(a.HubCapReq("/api/v1/library?sort_by=name&app_types=game&search=%s", g), &resp); err != nil {
+	req, err := a.HubCapReq("/api/v1/library?sort_by=name&app_types=game&search=%s", g)
+	if err != nil {
 		return 0, "", err
+	}
+	if err := HttpJson(req, &resp); err != nil {
+		return 0, "", fmt.Errorf("search %q: %w", g, err)
 	}
 	if resp.Status != "success" {
 		return 0, "", fmt.Errorf("HubCap didn't succeed: %s", resp.Status)
@@ -91,18 +95,25 @@ func (a *App) searchGameName(g string) (int, string, error) {
 	return game.AppID, game.Name, nil
 }
 
-func (a *App) HubCapReq(url string, o ...any) *http.Request {
+func (a *App) HubCapReq(url string, o ...any) (*http.Request, error) {
 	if len(o) > 0 {
 		url = fmt.Sprintf(url, o...)
 	}
-	req, _ := http.NewRequest("GET", "https://hubcapmanifest.com"+url, nil)
+	req, err := http.NewRequest("GET", "https://hubcapmanifest.com"+url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("HubCap request to %q: %w", url, err)
+	}
 	req.Header.Set("Authorization", "Bearer "+a.ApiKey)
-	return req
+	return req, nil
 }
 
 func (a *App) CheckUsage() (int, error) {
 	var resp UsageResponse
-	if err := HttpJson(a.HubCapReq("/api/v1/user/stats"), &resp); err != nil {
+	req, err := a.HubCapReq("/api/v1/user/stats")
+	if err != nil {
+		return 0, err
+	}
+	if err := HttpJson(req, &resp); err != nil {
 		return 0, err
 	}
 	n := resp.Limit - resp.Usage
@@ -114,8 +125,12 @@ func (a *App) CheckUsage() (int, error) {
 
 func (a *App) CheckUpdate(appid int) (bool, []ManifestData, string, error) {
 	var statusResp StatusResponse
-	if err := HttpJson(a.HubCapReq("/api/v1/status/%d", appid), &statusResp); err != nil {
+	req, err := a.HubCapReq("/api/v1/status/%d", appid)
+	if err != nil {
 		return false, nil, "", err
+	}
+	if err := HttpJson(req, &statusResp); err != nil {
+		return false, nil, "", fmt.Errorf("check update %d: %w", appid, err)
 	}
 	if statusResp.Status != "available" || !statusResp.Exists {
 		if statusResp.Message == "" {
@@ -129,21 +144,29 @@ func (a *App) CheckUpdate(appid int) (bool, []ManifestData, string, error) {
 	}
 
 	// Get the manifest gid's in HubCap's library to compare
-	var contentResponse ContentResponse
-	if err := HttpJson(a.HubCapReq("/api/v1/manifest/%d/contents", appid), &contentResponse); err != nil {
+	req, err = a.HubCapReq("/api/v1/manifest/%d/contents", appid)
+	if err != nil {
 		return false, nil, "", err
 	}
+	var contentResponse ContentResponse
+	if err := HttpJson(req, &contentResponse); err != nil {
+		return false, nil, "", fmt.Errorf("check update %d: %w", appid, err)
+	}
 	if !contentResponse.ZipExists || len(contentResponse.Manifests) == 0 {
-		return false, nil, "", fmt.Errorf("Invalid HubCap /content response")
+		return false, nil, "", fmt.Errorf("invalid HubCap /content response for %d", appid)
 	}
 	return false, contentResponse.Manifests, statusResp.GameName, nil
 }
 
 func (a *App) InstallGame(appid int, name string) error {
-	resp, err := HttpReq(a.HubCapReq("/api/v1/manifest/%d", appid))
+	req, reqErr := a.HubCapReq("/api/v1/manifest/%d", appid)
+	if reqErr != nil {
+		return reqErr
+	}
+	resp, err := HttpReq(req)
 	if err != nil {
 		if resp == nil {
-			return err
+			return fmt.Errorf("install %s (%d): %w", name, appid, err)
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode == http.StatusNotFound {
@@ -153,20 +176,20 @@ func (a *App) InstallGame(appid int, name string) error {
 			Detail string `json:"detail"`
 		}
 		if jserr := json.NewDecoder(resp.Body).Decode(&js); jserr == nil {
-			return fmt.Errorf("API error (status %d): %s", resp.StatusCode, js.Detail)
+			return fmt.Errorf("API error for %d (status %d): %s", appid, resp.StatusCode, js.Detail)
 		}
-		return err
+		return fmt.Errorf("install %s (%d): %w", name, appid, err)
 	}
 
 	// Zip size is usually 0.5-60mb, so just read from memory
 	buf, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
-		return fmt.Errorf("Failed to read response body: %w", err)
+		return fmt.Errorf("install %s (%d): read response body: %w", name, appid, err)
 	}
 	zipReader, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
 	if err != nil {
-		return fmt.Errorf("Failed to open zip: %w", err)
+		return fmt.Errorf("install %s (%d): open zip: %w", name, appid, err)
 	}
 
 	var luab []byte
@@ -174,7 +197,7 @@ func (a *App) InstallGame(appid int, name string) error {
 		switch filepath.Ext(file.Name) {
 		case ".manifest":
 			if err := a.copyManifest(file); err != nil {
-				return err
+				return fmt.Errorf("install %s (%d): %w", name, appid, err)
 			}
 		case ".lua":
 			if luab != nil {
@@ -189,7 +212,7 @@ func (a *App) InstallGame(appid int, name string) error {
 		}
 	}
 	if luab == nil {
-		return fmt.Errorf("No lua file found")
+		return fmt.Errorf("install %s (%d): no lua file found in manifest zip", name, appid)
 	}
 	return a.parseLua(luab, appid, name)
 }

@@ -31,7 +31,7 @@ func (a *App) Update(dryrun bool) error {
 		a.Out.Info("Checking %d/%d", i+1, len(a.Config.Games))
 		upd, data, name, err := a.CheckUpdate(appid)
 		if err != nil {
-			return err
+			return fmt.Errorf("update check for %d: %w", appid, err)
 		} else if !upd {
 			for _, d := range data {
 				if val, exists := manifestMap[d.Depot]; !exists || val != d.Manifest {
@@ -54,7 +54,7 @@ func (a *App) Update(dryrun bool) error {
 
 	limit, err := a.CheckUsage()
 	if err != nil {
-		return err
+		return fmt.Errorf("check HubCap usage: %w", err)
 	}
 	var selected []foundGame
 	s := huh.NewMultiSelect[foundGame]().
@@ -67,18 +67,21 @@ func (a *App) Update(dryrun bool) error {
 		s.Limit(limit).Description(fmt.Sprintf("Space to toggle, you can update %d.", limit))
 	}
 	if err := s.Run(); err != nil {
-		return err
+		return fmt.Errorf("game selection form: %w", err)
 	}
 
 	for i, g := range selected {
 		if err := a.InstallGame(g.AppID, g.Name); err != nil {
 			if i > 0 {
 				if saveErr := a.SaveSLSconfig(); saveErr != nil {
-					return fmt.Errorf("%w (%w)", err, saveErr)
+					return fmt.Errorf("install %s (%d): %w; also failed to save config: %v", g.Name, g.AppID, err, saveErr)
 				}
 			}
-			return err
+			return fmt.Errorf("install %s (%d): %w", g.Name, g.AppID, err)
 		}
 	}
-	return a.SaveSLSconfig()
+	if err := a.SaveSLSconfig(); err != nil {
+		return fmt.Errorf("save SLS config: %w", err)
+	}
+	return nil
 }

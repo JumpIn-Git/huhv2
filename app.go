@@ -79,7 +79,7 @@ func NewApp(apikey string, verbose bool, slsc string) (*App, error) {
 	}
 	a.Config, err = LoadConfig()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load config: %w", err)
 	}
 	a.Out = NewOutput(os.Stdout, verbose)
 	return a, nil
@@ -88,10 +88,10 @@ func NewApp(apikey string, verbose bool, slsc string) (*App, error) {
 func (a *App) SaveSLSconfig() error {
 	b, err := yaml.Marshal(a.SlsConfig)
 	if err != nil {
-		return fmt.Errorf("SLSsteam/config.yaml: %w", err)
+		return fmt.Errorf("SLSsteam/config.yaml: marshal: %w", err)
 	}
 	if err := os.WriteFile(a.SLSconfigPath, b, 0644); err != nil {
-		return fmt.Errorf("SLSsteam/config.yaml: %w", err)
+		return fmt.Errorf("SLSsteam/config.yaml: write %s: %w", a.SLSconfigPath, err)
 	}
 	return nil
 }

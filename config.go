@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -20,17 +21,17 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		path, err = xdg.ConfigFile("huhcap/config.json")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("config path: %w", err)
 		}
 		return &Config{path: path}, nil
 	}
 	cfg := &Config{path: path}
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read config %s: %w", path, err)
 	}
 	if err := json.Unmarshal(b, cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse config %s: %w", path, err)
 	}
 	return cfg, nil
 }
@@ -38,10 +39,13 @@ func LoadConfig() (*Config, error) {
 func (cfg *Config) Save() error {
 	b, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal config: %w", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(cfg.path), 0755); err != nil {
-		return err
+		return fmt.Errorf("create config dir: %w", err)
 	}
-	return os.WriteFile(cfg.path, b, 0644)
+	if err := os.WriteFile(cfg.path, b, 0644); err != nil {
+		return fmt.Errorf("write config %s: %w", cfg.path, err)
+	}
+	return nil
 }
