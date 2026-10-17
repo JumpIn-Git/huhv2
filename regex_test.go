@@ -1,75 +1,96 @@
 package main
 
 import (
-	"regexp"
 	"testing"
 )
 
-func TestExtractSteamAppID(t *testing.T) {
-	re := regexp.MustCompile(`^(?:https?://)?store\.steampowered\.com/app/(\d+)`)
+func TestSteamURLRegex(t *testing.T) {
+	re := steamURLRegex
 
 	tests := []struct {
 		name      string
-		input     string
-		expected  string
+		url       string
 		wantMatch bool
+		wantAppID string
+		wantGame  string
 	}{
 		{
-			name:      "Full HTTPS URL with trailing slash",
-			input:     "https://store.steampowered.com/app/1030300/Hollow_Knight_Silksong/",
-			expected:  "1030300",
+			name:      "https with game name and trailing slash",
+			url:       "https://store.steampowered.com/app/1030300/Hollow_Knight_Silksong/",
 			wantMatch: true,
+			wantAppID: "1030300",
+			wantGame:  "Hollow_Knight_Silksong",
 		},
 		{
-			name:      "HTTP URL without trailing slash",
-			input:     "http://store.steampowered.com/app/1030300/Hollow_Knight_Silksong",
-			expected:  "1030300",
+			name:      "http without trailing slash",
+			url:       "http://store.steampowered.com/app/1030300/Hollow_Knight_Silksong",
 			wantMatch: true,
+			wantAppID: "1030300",
+			wantGame:  "Hollow_Knight_Silksong",
 		},
 		{
-			name:      "No protocol, no slug, with trailing slash",
-			input:     "store.steampowered.com/app/1030300/",
-			expected:  "1030300",
+			name:      "no protocol with trailing slash",
+			url:       "store.steampowered.com/app/1030300/Hollow_Knight_Silksong/",
 			wantMatch: true,
+			wantAppID: "1030300",
+			wantGame:  "Hollow_Knight_Silksong",
 		},
 		{
-			name:      "Bare domain and app ID",
-			input:     "store.steampowered.com/app/1030300",
-			expected:  "1030300",
+			name:      "no protocol and no game name",
+			url:       "store.steampowered.com/app/1030300",
 			wantMatch: true,
+			wantAppID: "1030300",
+			wantGame:  "",
 		},
 		{
-			name:      "Invalid URL domain",
-			input:     "https://example.com/app/1030300/",
-			expected:  "",
+			name:      "https with app ID and trailing slash only",
+			url:       "https://store.steampowered.com/app/1030300/",
+			wantMatch: true,
+			wantAppID: "1030300",
+			wantGame:  "",
+		},
+		{
+			name:      "invalid domain",
+			url:       "https://fake.steampowered.com/app/1030300/Hollow_Knight_Silksong/",
 			wantMatch: false,
 		},
 		{
-			name:      "Missing App ID",
-			input:     "https://store.steampowered.com/app/",
-			expected:  "",
+			name:      "non-numeric app ID",
+			url:       "https://store.steampowered.com/app/abc/Hollow_Knight_Silksong/",
+			wantMatch: false,
+		},
+		{
+			name:      "extra path segments after game name",
+			url:       "https://store.steampowered.com/app/1030300/Hollow_Knight_Silksong/extra",
 			wantMatch: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			matches := re.FindStringSubmatch(tt.input)
+			matches := re.FindStringSubmatch(tt.url)
 
 			if !tt.wantMatch {
 				if len(matches) > 0 {
-					t.Errorf("expected no match for %q, but got matches: %v", tt.input, matches)
+					t.Errorf("expected no match for URL %q, but got %v", tt.url, matches)
 				}
 				return
 			}
 
-			if len(matches) < 2 {
-				t.Fatalf("expected at least 1 capture group for %q, but got none", tt.input)
+			if len(matches) == 0 {
+				t.Fatalf("expected match for URL %q, but got none", tt.url)
 			}
 
-			got := matches[1]
-			if got != tt.expected {
-				t.Errorf("ExtractAppID(%q) = %q; want %q", tt.input, got, tt.expected)
+			// Group 1: App ID
+			gotAppID := matches[1]
+			if gotAppID != tt.wantAppID {
+				t.Errorf("App ID = %q, want %q", gotAppID, tt.wantAppID)
+			}
+
+			// Group 2: Optional Game Name
+			gotGame := matches[2]
+			if gotGame != tt.wantGame {
+				t.Errorf("Game Name = %q, want %q", gotGame, tt.wantGame)
 			}
 		})
 	}

@@ -15,15 +15,16 @@ import (
 	"time"
 )
 
+var steamURLRegex = regexp.MustCompile(`^(?:https?://)?store\.steampowered\.com/app/(\d+)(?:/([^/]+))?/?$`)
+
 func (a *App) parseAppID(g string) (int, string, error) {
 	if n, err := strconv.Atoi(g); err == nil {
 		return n, "", nil
 	}
-	if matches := regexp.MustCompile(
-		`^(?:https?://)?store\.steampowered\.com/app/(\d+)`).
-		FindStringSubmatch(g); len(matches) > 1 {
+	if matches := steamURLRegex.FindStringSubmatch(g); len(matches) == 3 {
+		// [{g}, int, string (can be "")]
 		if n, err := strconv.Atoi(matches[1]); err == nil {
-			return n, "", nil
+			return n, matches[2], nil
 		}
 	}
 	return a.searchGameName(g)
