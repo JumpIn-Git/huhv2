@@ -56,10 +56,7 @@ func (l LibraryItem) String() string {
 
 func (a *App) searchGameName(g string) (int, string, error) {
 	var resp LibraryResponse
-	req, err := a.HubCapReq("/api/v1/library?sort_by=name&app_types=game&search=%s", g)
-	if err != nil {
-		return 0, "", err
-	}
+	req := a.HubCapReq("/api/v1/library?sort_by=name&app_types=game&search=%s", g)
 	if err := HttpJson(req, &resp); err != nil {
 		return 0, "", fmt.Errorf("search %q: %w", g, err)
 	}
@@ -72,7 +69,7 @@ func (a *App) searchGameName(g string) (int, string, error) {
 	if len(resp.Games) == 1 {
 		var b bool
 		if err := huh.NewConfirm().
-			Title(fmt.Sprintf("Is %s what you meant with %s?",
+			Title(fmt.Sprintf("Is %q what you meant with %q?",
 				resp.Games[0], g)).
 			Value(&b).Run(); err != nil {
 			return 0, "", err
@@ -95,24 +92,18 @@ func (a *App) searchGameName(g string) (int, string, error) {
 	return game.AppID, game.Name, nil
 }
 
-func (a *App) HubCapReq(url string, o ...any) (*http.Request, error) {
+func (a *App) HubCapReq(url string, o ...any) *http.Request {
 	if len(o) > 0 {
 		url = fmt.Sprintf(url, o...)
 	}
-	req, err := http.NewRequest("GET", "https://hubcapmanifest.com"+url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("HubCap request to %q: %w", url, err)
-	}
+	req, _ := http.NewRequest("GET", "https://hubcapmanifest.com"+url, nil)
 	req.Header.Set("Authorization", "Bearer "+a.ApiKey)
-	return req, nil
+	return req
 }
 
 func (a *App) CheckUsage() (int, error) {
 	var resp UsageResponse
-	req, err := a.HubCapReq("/api/v1/user/stats")
-	if err != nil {
-		return 0, err
-	}
+	req := a.HubCapReq("/api/v1/user/stats")
 	if err := HttpJson(req, &resp); err != nil {
 		return 0, err
 	}
@@ -125,10 +116,7 @@ func (a *App) CheckUsage() (int, error) {
 
 func (a *App) CheckUpdate(appid int) (bool, []ManifestData, string, error) {
 	var statusResp StatusResponse
-	req, err := a.HubCapReq("/api/v1/status/%d", appid)
-	if err != nil {
-		return false, nil, "", err
-	}
+	req := a.HubCapReq("/api/v1/status/%d", appid)
 	if err := HttpJson(req, &statusResp); err != nil {
 		return false, nil, "", fmt.Errorf("check update %d: %w", appid, err)
 	}
@@ -144,10 +132,7 @@ func (a *App) CheckUpdate(appid int) (bool, []ManifestData, string, error) {
 	}
 
 	// Get the manifest gid's in HubCap's library to compare
-	req, err = a.HubCapReq("/api/v1/manifest/%d/contents", appid)
-	if err != nil {
-		return false, nil, "", err
-	}
+	req = a.HubCapReq("/api/v1/manifest/%d/contents", appid)
 	var contentResponse ContentResponse
 	if err := HttpJson(req, &contentResponse); err != nil {
 		return false, nil, "", fmt.Errorf("check update %d: %w", appid, err)
@@ -159,10 +144,7 @@ func (a *App) CheckUpdate(appid int) (bool, []ManifestData, string, error) {
 }
 
 func (a *App) InstallGame(appid int, name string) error {
-	req, reqErr := a.HubCapReq("/api/v1/manifest/%d", appid)
-	if reqErr != nil {
-		return reqErr
-	}
+	req := a.HubCapReq("/api/v1/manifest/%d", appid)
 	resp, err := HttpReq(req)
 	if err != nil {
 		if resp == nil {

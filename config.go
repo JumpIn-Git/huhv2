@@ -10,10 +10,10 @@ import (
 )
 
 type Config struct {
-	Games  []int  `json:"managed-games"`
-	Pins   []int  `json:"pins"`
-	ApiKey string `json:"api-key"`
-	path   string
+	Games []int `json:"managed-games"`
+	Pins  []int `json:"pins"`
+	// ApiKey string `json:"api-key"`
+	path string
 }
 
 func LoadConfig() (*Config, error) {

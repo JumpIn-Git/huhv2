@@ -27,12 +27,12 @@ type App struct {
 func NewApp(apikey string, verbose bool, slsc string) (*App, error) {
 	depotcache, err := xdg.SearchDataFile("Steam/depotcache")
 	if err != nil {
-		return nil, errors.New("Steam depotcache not found, start any game's installation in Steam.")
+		return nil, errors.New("Steam depotcache not found, start any game's installation in Steam")
 	}
 	if slsc == "" {
 		slsc, err = xdg.SearchConfigFile("SLSsteam/config.yaml")
 		if err != nil {
-			return nil, errors.New("SLSsteam config not found, install and run once.")
+			return nil, errors.New("SLSsteam config not found, install and run once")
 		}
 	}
 
