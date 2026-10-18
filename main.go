@@ -126,7 +126,6 @@ func (m *Manager) Run(cli *CLI) error {
 	return nil
 }
 
-// TODO add api key manager, if both config api key and argument is emtpy error
 type CLI struct {
 	ApiKey    string     `short:"a" env:"HUBCAP_KEY" help:"API key for authentication."`
 	Verbose   bool       `short:"v" help:"Show detailed progress and manifest operations."`
@@ -139,8 +138,19 @@ type CLI struct {
 }
 
 func (c *CLI) Validate() error {
+	cfg, err := LoadConfig()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
 	if c.ApiKey == "" {
-		return fmt.Errorf("Missing API key: pass --api (-a) or set $HUBCAP_KEY")
+		c.ApiKey = cfg.ApiKey
+	}
+	if c.ApiKey == "" {
+		return fmt.Errorf("Missing API key: pass --api (-a), set $HUBCAP_KEY, or run `huhcap --api <key>` to save one")
+	}
+	if cfg.ApiKey != c.ApiKey {
+		cfg.ApiKey = c.ApiKey
+		_ = cfg.Save()
 	}
 	return nil
 }
