@@ -33,19 +33,27 @@ func (c *InstallCmd) Run(cli *CLI) error {
 
 	// TODO add limit check
 	var upd bool
+	i := 0
 	for _, g := range found {
 		if err := a.InstallGame(g.AppID, g.Name); err != nil {
+			err = fmt.Errorf("install %s (%d): %w", g.Name, g.AppID, err)
 			if upd {
 				if saveErr := a.Config.Save(); saveErr != nil {
-					return fmt.Errorf("install %s (%d): %w; also failed to save config: %v", g.Name, g.AppID, err, saveErr)
+					err = fmt.Errorf("%w; also failed to save config: %v", err, saveErr)
 				}
 			}
-			return fmt.Errorf("install %s (%d): %w", g.Name, g.AppID, err)
+			if i > 0 {
+				if saveErr := a.SaveSLSconfig(); saveErr != nil {
+					err = fmt.Errorf("%w; %w", err, saveErr)
+				}
+			}
+			return err
 		}
 		if _, ok := a.Config.Games[g.AppID]; !ok {
 			a.Config.Games[g.AppID] = g.Name
 			upd = true
 		}
+		i++
 		a.Out.Info("Installed %s!", g.Name)
 	}
 	if upd {
@@ -53,7 +61,7 @@ func (c *InstallCmd) Run(cli *CLI) error {
 			return fmt.Errorf("save config: %w", err)
 		}
 	}
-	return nil
+	return a.SaveSLSconfig()
 }
 
 type UpdateCmd struct {
