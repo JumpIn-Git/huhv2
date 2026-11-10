@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path/filepath"
 
 	"charm.land/huh/v2"
@@ -56,7 +57,7 @@ func (l LibraryItem) String() string {
 
 func (a *App) searchGameName(g string) (int, string, error) {
 	var resp LibraryResponse
-	req := a.HubCapReq("/api/v1/library?sort_by=name&app_types=game&search=%s", g)
+	req := a.HubCapReq("/api/v1/library?sort_by=name&app_types=game&search=%s", url.QueryEscape(g))
 	if err := HttpJson(req, &resp); err != nil {
 		return 0, "", fmt.Errorf("search %q: %w", g, err)
 	}
