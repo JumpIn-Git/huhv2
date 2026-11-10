@@ -12,42 +12,36 @@ func TestSteamURLRegex(t *testing.T) {
 		url       string
 		wantMatch bool
 		wantAppID string
-		wantGame  string
 	}{
 		{
 			name:      "https with game name and trailing slash",
 			url:       "https://store.steampowered.com/app/1030300/Hollow_Knight_Silksong/",
 			wantMatch: true,
 			wantAppID: "1030300",
-			wantGame:  "Hollow_Knight_Silksong",
 		},
 		{
 			name:      "http without trailing slash",
 			url:       "http://store.steampowered.com/app/1030300/Hollow_Knight_Silksong",
 			wantMatch: true,
 			wantAppID: "1030300",
-			wantGame:  "Hollow_Knight_Silksong",
 		},
 		{
 			name:      "no protocol with trailing slash",
 			url:       "store.steampowered.com/app/1030300/Hollow_Knight_Silksong/",
 			wantMatch: true,
 			wantAppID: "1030300",
-			wantGame:  "Hollow_Knight_Silksong",
 		},
 		{
 			name:      "no protocol and no game name",
 			url:       "store.steampowered.com/app/1030300",
 			wantMatch: true,
 			wantAppID: "1030300",
-			wantGame:  "",
 		},
 		{
 			name:      "https with app ID and trailing slash only",
 			url:       "https://store.steampowered.com/app/1030300/",
 			wantMatch: true,
 			wantAppID: "1030300",
-			wantGame:  "",
 		},
 		{
 			name:      "invalid domain",
@@ -85,12 +79,6 @@ func TestSteamURLRegex(t *testing.T) {
 			gotAppID := matches[1]
 			if gotAppID != tt.wantAppID {
 				t.Errorf("App ID = %q, want %q", gotAppID, tt.wantAppID)
-			}
-
-			// Group 2: Optional Game Name
-			gotGame := matches[2]
-			if gotGame != tt.wantGame {
-				t.Errorf("Game Name = %q, want %q", gotGame, tt.wantGame)
 			}
 		})
 	}

@@ -9,6 +9,7 @@ import (
 
 const AppType int = math.MaxInt
 
+// TODO track added ids to store in conf
 func (a *App) parseLua(luab []byte, appid int, name string) error {
 	L := lua.NewState()
 	defer L.Close()

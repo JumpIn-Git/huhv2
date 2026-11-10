@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 
+	"time"
+
 	"charm.land/huh/v2"
 )
 
@@ -23,13 +25,14 @@ func (a *App) Update(dryrun bool) error {
 		manifestMap[a.ManifestIds.Content[i].Value] = a.ManifestIds.Content[i+1].Value
 	}
 
-	for i, appid := range a.Config.Games {
+	i := 0
+	for appid, name := range a.Config.Games {
 		if slices.Contains(a.Config.Pins, appid) {
 			a.Out.Info("Skipping pinned %d (%d/%d)", appid, i+1, len(a.Config.Games))
 			continue
 		}
 		a.Out.Info("Checking %d/%d", i+1, len(a.Config.Games))
-		upd, data, name, err := a.CheckUpdate(appid)
+		upd, data, err := a.CheckUpdate(appid)
 		if err != nil {
 			return fmt.Errorf("update check for %d: %w", appid, err)
 		} else if !upd {
@@ -43,6 +46,8 @@ func (a *App) Update(dryrun bool) error {
 		if upd {
 			found = append(found, foundGame{appid, name})
 		}
+		time.Sleep(200 * time.Millisecond)
+		i++
 	}
 	if len(found) == 0 {
 		a.Out.Info("No updates!")
@@ -79,6 +84,7 @@ func (a *App) Update(dryrun bool) error {
 			}
 			return fmt.Errorf("install %s (%d): %w", g.Name, g.AppID, err)
 		}
+		a.Out.Info("Updated %s!", g.Name)
 	}
 	if err := a.SaveSLSconfig(); err != nil {
 		return fmt.Errorf("save SLS config: %w", err)

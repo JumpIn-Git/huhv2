@@ -8,7 +8,7 @@ import (
 )
 
 type InstallCmd struct {
-	AppIDs []string `arg:"" required:"" placeholder:"APPID" help:"Games to install, can be a appid, store page or game name to search."`
+	AppIDs []string `arg:"" required:"" placeholder:"APPID" help:"Games to install; can be a appid, store page or game name to search."`
 }
 
 func (c *InstallCmd) Run(cli *CLI) error {
@@ -42,8 +42,8 @@ func (c *InstallCmd) Run(cli *CLI) error {
 			}
 			return fmt.Errorf("install %s (%d): %w", g.Name, g.AppID, err)
 		}
-		if !slices.Contains(a.Config.Games, g.AppID) {
-			a.Config.Games = append(a.Config.Games, g.AppID)
+		if _, ok := a.Config.Games[g.AppID]; !ok {
+			a.Config.Games[g.AppID] = g.Name
 			upd = true
 		}
 		a.Out.Info("Installed %s!", g.Name)
@@ -112,14 +112,17 @@ func (m *Manager) Run(cli *CLI) error {
 		return err
 	}
 	if m.Delete {
-		old := len(cfg.Games)
-		cfg.Games = slices.DeleteFunc(cfg.Games, func(appid int) bool { return appid == m.AppID })
-		if old > len(cfg.Games) {
+		if _, ok := cfg.Games[m.AppID]; ok {
+			delete(cfg.Games, m.AppID)
 			return cfg.Save()
 		}
 	} else {
-		if !slices.Contains(cfg.Games, m.AppID) {
-			cfg.Games = append(cfg.Games, m.AppID)
+		if _, ok := cfg.Games[m.AppID]; !ok {
+			name, err := getGameName(m.AppID)
+			if err != nil {
+				return fmt.Errorf("get game name for %d: %w", m.AppID, err)
+			}
+			cfg.Games[m.AppID] = name
 			return cfg.Save()
 		}
 	}

@@ -22,9 +22,8 @@ func (a *App) parseAppID(g string) (int, string, error) {
 		return n, "", nil
 	}
 	if matches := steamURLRegex.FindStringSubmatch(g); len(matches) == 3 {
-		// [{g}, int, string (can be "")]
 		if n, err := strconv.Atoi(matches[1]); err == nil {
-			return n, matches[2], nil
+			return n, "", nil
 		}
 	}
 	return a.searchGameName(g)

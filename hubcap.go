@@ -114,33 +114,33 @@ func (a *App) CheckUsage() (int, error) {
 	return n, nil
 }
 
-func (a *App) CheckUpdate(appid int) (bool, []ManifestData, string, error) {
+func (a *App) CheckUpdate(appid int) (bool, []ManifestData, error) {
 	var statusResp StatusResponse
 	req := a.HubCapReq("/api/v1/status/%d", appid)
 	if err := HttpJson(req, &statusResp); err != nil {
-		return false, nil, "", fmt.Errorf("check update %d: %w", appid, err)
+		return false, nil, fmt.Errorf("check update %d: %w", appid, err)
 	}
 	if statusResp.Status != "available" || !statusResp.Exists {
 		if statusResp.Message == "" {
 			statusResp.Message = fmt.Sprintf("Game %d is not available in HubCap", appid)
 		}
-		return false, nil, "", errors.New(statusResp.Message)
+		return false, nil, errors.New(statusResp.Message)
 	}
 	// The manifests in HubCap's storage are out of date, so true
 	if statusResp.NeedsUpdate {
-		return true, nil, statusResp.GameName, nil
+		return true, nil, nil
 	}
 
 	// Get the manifest gid's in HubCap's library to compare
 	req = a.HubCapReq("/api/v1/manifest/%d/contents", appid)
 	var contentResponse ContentResponse
 	if err := HttpJson(req, &contentResponse); err != nil {
-		return false, nil, "", fmt.Errorf("check update %d: %w", appid, err)
+		return false, nil, fmt.Errorf("check update %d: %w", appid, err)
 	}
 	if !contentResponse.ZipExists || len(contentResponse.Manifests) == 0 {
-		return false, nil, "", fmt.Errorf("invalid HubCap /content response for %d", appid)
+		return false, nil, fmt.Errorf("invalid HubCap /content response for %d", appid)
 	}
-	return false, contentResponse.Manifests, statusResp.GameName, nil
+	return false, contentResponse.Manifests, nil
 }
 
 func (a *App) InstallGame(appid int, name string) error {
@@ -163,7 +163,7 @@ func (a *App) InstallGame(appid int, name string) error {
 		return fmt.Errorf("install %s (%d): %w", name, appid, err)
 	}
 
-	// Zip size is usually 0.5-60mb, so just read from memory
+	// Zip size is usually >=60mb, so just read from memory
 	buf, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {

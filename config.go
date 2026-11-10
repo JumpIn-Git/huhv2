@@ -9,10 +9,14 @@ import (
 	"github.com/adrg/xdg"
 )
 
+type GameInfo struct {
+	Name string
+	Ids  []int // All managed depots and appids
+}
 type Config struct {
-	Games []int `json:"managed-games"`
-	Pins   []int  `json:"pins"`
-	ApiKey string `json:"api-key"`
+	Games  map[int]string `json:"managed-games"` // map[appid]name
+	Pins   []int          `json:"pins"`
+	ApiKey string         `json:"api-key"`
 	path   string
 }
 
@@ -23,7 +27,7 @@ func LoadConfig() (*Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("config path: %w", err)
 		}
-		return &Config{path: path}, nil
+		return &Config{path: path, Games: make(map[int]string)}, nil
 	}
 	cfg := &Config{path: path}
 	b, err := os.ReadFile(path)
@@ -32,6 +36,9 @@ func LoadConfig() (*Config, error) {
 	}
 	if err := json.Unmarshal(b, cfg); err != nil {
 		return nil, fmt.Errorf("parse config %s: %w", path, err)
+	}
+	if cfg.Games == nil {
+		cfg.Games = make(map[int]string)
 	}
 	return cfg, nil
 }
